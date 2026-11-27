@@ -5,6 +5,8 @@ import android.net.Uri;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -47,6 +49,8 @@ public class ModManagerFragment extends Fragment {
     private File mModsFolder;
 
     private Instance mInstance;
+    private final Handler mSearchHandler = new Handler(Looper.getMainLooper());
+    private Runnable mPendingSearch;
     private final ActivityResultLauncher<Object> mModImportLauncher =
             registerForActivityResult(new OpenDocumentWithExtension("jar"), uri -> {
                 if (uri == null || getContext() == null || mInstance == null) return;
@@ -58,7 +62,11 @@ public class ModManagerFragment extends Fragment {
     private void importMod(Context context, Uri uri, String fileName) {
         try {
             if (!mModsFolder.exists() && !mModsFolder.mkdirs()) throw new IOException("Unable to create mods folder");
-            File target = new File(mModsFolder, fileName);
+            String safeName = fileName == null ? "imported-mod.jar" : fileName.replace("/", "_").replace("\\", "_");
+            File target = new File(mModsFolder, safeName);
+            String base = safeName.endsWith(".jar") ? safeName.substring(0, safeName.length() - 4) : safeName;
+            int suffix = 1;
+            while (target.exists()) target = new File(mModsFolder, base + " (" + suffix++ + ").jar");
             try (InputStream input = context.getContentResolver().openInputStream(uri);
                  OutputStream output = new FileOutputStream(target)) {
                 if (input == null) throw new IOException("Unable to read selected file");
@@ -93,7 +101,8 @@ public class ModManagerFragment extends Fragment {
                 if(isRemoving() || isDetached()) return;
                 ModAdapter modAdapter = new ModAdapter(modInfoList, modPlatform, scanner);
                 mModRecyclerView.setAdapter(modAdapter);
-                modAdapter.performSearch(m->true, mProgressBar);
+                String query = mSearchEditText == null ? "" : mSearchEditText.getText().toString().trim().toLowerCase();
+                modAdapter.performSearch(mod -> query.isEmpty() || mod.searchTerms.contains(query), mProgressBar);
             });
         });
     }
@@ -118,16 +127,26 @@ public class ModManagerFragment extends Fragment {
         mSearchEditText.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
-                ModAdapter adapter = (ModAdapter) mModRecyclerView.getAdapter();
-                if (adapter != null) {
-                    String query = s.toString().trim().toLowerCase();
-                    adapter.performSearch(mod -> query.isEmpty() || mod.searchTerms.contains(query), mProgressBar);
-                }
+                if (mPendingSearch != null) mSearchHandler.removeCallbacks(mPendingSearch);
+                String query = s.toString().trim().toLowerCase();
+                mPendingSearch = () -> {
+                    ModAdapter adapter = (ModAdapter) mModRecyclerView.getAdapter();
+                    if (adapter != null && isAdded()) {
+                        adapter.performSearch(mod -> query.isEmpty() || mod.searchTerms.contains(query), mProgressBar);
+                    }
+                };
+                mSearchHandler.postDelayed(mPendingSearch, 220);
             }
             @Override public void afterTextChanged(Editable s) { }
         });
         mModRecyclerView.setLayoutManager(new LinearLayoutManager(view.getContext()));
         Tools.setupOverlayView(mModRecyclerView, mOverlay);
+    }
+
+    @Override
+    public void onDestroyView() {
+        if (mPendingSearch != null) mSearchHandler.removeCallbacks(mPendingSearch);
+        super.onDestroyView();
     }
 
     @Override

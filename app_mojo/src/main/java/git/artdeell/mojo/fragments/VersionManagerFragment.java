@@ -94,7 +94,9 @@ public class VersionManagerFragment extends Fragment {
             return;
         }
         addSection("Installation");
-        addText(content, instance.name + "\nMinecraft " + instance.versionId +
+        String description = instance.description == null || instance.description.trim().isEmpty()
+                ? "" : "\n" + instance.description;
+        addText(content, instance.name + "\nMinecraft " + instance.versionId + description +
                 (instance.moddingData == null ? "\nVanilla installation" : "\nModded installation · " + instance.moddingData.platform));
         addAction("Custom Icon · Rename · Runtime · Renderer · Controls", () -> open(InstanceEditorFragment.class, InstanceEditorFragment.TAG));
         addAction("Add or Modify Loader / Install Modpack", () -> open(InstanceTypeSelectFragment.class, InstanceTypeSelectFragment.TAG));

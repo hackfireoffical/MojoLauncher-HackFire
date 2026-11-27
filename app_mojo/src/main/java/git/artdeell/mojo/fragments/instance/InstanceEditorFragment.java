@@ -50,7 +50,7 @@ public class InstanceEditorFragment extends Fragment implements CropperUtils.Cro
     private String mSelectedControlLayout;
     private Button mSaveButton, mDeleteButton, mControlSelectButton, mVersionSelectButton, mManageModsButton;
     private Spinner mDefaultRuntime, mDefaultRenderer;
-    private EditText mDefaultName, mDefaultJvmArgument;
+    private EditText mDefaultName, mDefaultDescription, mDefaultJvmArgument;
     private TextView mDefaultVersion, mDefaultControl, mVersionLabel, mSharedDataLabel;
     private ImageView mInstanceIcon;
     private CheckBox mSharedDataCheckbox;
@@ -200,6 +200,7 @@ public class InstanceEditorFragment extends Fragment implements CropperUtils.Cro
         mVersionLabel = view.findViewById(R.id.vprof_editor_version_sub);
 
         mDefaultName = view.findViewById(R.id.vprof_editor_instance_name);
+        mDefaultDescription = view.findViewById(R.id.vprof_editor_instance_description);
         mDefaultJvmArgument = view.findViewById(R.id.vprof_editor_jre_args);
 
         mSaveButton = view.findViewById(R.id.vprof_editor_save_button);
@@ -219,6 +220,8 @@ public class InstanceEditorFragment extends Fragment implements CropperUtils.Cro
         mInstance.jvmArgs = mDefaultJvmArgument.getText().toString();
 
         String newName = mDefaultName.getText().toString();
+        mInstance.description = mDefaultDescription.getText().toString().trim();
+        if (mInstance.description.isEmpty()) mInstance.description = null;
         if(mInstance.controlLayout.isEmpty()) mInstance.controlLayout = null;
         if(mInstance.jvmArgs.isEmpty()) mInstance.jvmArgs = null;
 

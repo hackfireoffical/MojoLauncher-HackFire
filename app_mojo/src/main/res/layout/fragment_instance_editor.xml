@@ -65,6 +65,29 @@
 
 
             <TextView
+                android:id="@+id/vprof_editor_description_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Description"
+                app:layout_constraintBottom_toTopOf="@+id/vprof_editor_instance_description"
+                app:layout_constraintStart_toStartOf="@+id/vprof_editor_instance_description" />
+
+            <EditText
+                android:id="@+id/vprof_editor_instance_description"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:background="@drawable/background_line"
+                android:ems="10"
+                android:hint="Optional installation description"
+                android:inputType="textCapSentences|textMultiLine"
+                android:minLines="1"
+                android:maxLines="3"
+                android:paddingHorizontal="@dimen/padding_heavy"
+                android:textSize="@dimen/_13ssp"
+                app:layout_constraintTop_toBottomOf="@+id/vprof_editor_instance_name" />
+
+            <TextView
                 android:id="@+id/vprof_editor_version_sub"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -85,7 +108,7 @@
 
                 app:layout_constraintEnd_toStartOf="@+id/vprof_editor_version_button"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/vprof_editor_instance_name" />
+                app:layout_constraintTop_toBottomOf="@+id/vprof_editor_instance_description" />
 
             <Button
                 android:id="@+id/vprof_editor_version_button"

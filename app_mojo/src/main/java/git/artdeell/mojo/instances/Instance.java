@@ -24,6 +24,8 @@ public class Instance extends DisplayInstance {
 
     public InstanceInstaller installer;
     public String renderer;
+    /** Optional user-facing description shown in the installation manager. */
+    public String description;
     public String jvmArgs;
     public int argsMode;
     public String selectedRuntime;
