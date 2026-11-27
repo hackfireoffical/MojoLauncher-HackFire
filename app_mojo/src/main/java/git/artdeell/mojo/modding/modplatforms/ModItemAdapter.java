@@ -2,6 +2,9 @@ package git.artdeell.mojo.modding.modplatforms;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.util.Log;
@@ -15,6 +18,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.graphics.drawable.RoundedBitmapDrawable;
 import androidx.core.graphics.drawable.RoundedBitmapDrawableFactory;
@@ -190,10 +194,22 @@ public class ModItemAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     mExtendedSpinner = mExtendedLayout.findViewById(R.id.mod_extended_version_spinner);
                     mExtendedErrorTextView = mExtendedLayout.findViewById(R.id.mod_extended_error_textview);
 
-                    mExtendedButton.setOnClickListener(v1 -> mInstallHandler.install(
-                            mExtendedButton.getContext().getApplicationContext(),
-                            mModDetail,
-                            mExtendedSpinner.getSelectedItemPosition()));
+                    mExtendedButton.setOnClickListener(v1 -> {
+                        int versionPosition = mExtendedSpinner.getSelectedItemPosition();
+                        if (versionPosition < 0 || mModDetail == null) return;
+                        Context context = mExtendedButton.getContext();
+                        if (isUsingMobileData(context)) {
+                            new AlertDialog.Builder(context)
+                                    .setTitle(R.string.global_warning)
+                                    .setMessage("You are using mobile data. Continuing the download may consume a significant amount of data. Do you want to continue?")
+                                    .setNegativeButton(android.R.string.cancel, null)
+                                    .setPositiveButton("Use Anyway", (dialog, which) ->
+                                            mInstallHandler.install(context.getApplicationContext(), mModDetail, versionPosition))
+                                    .show();
+                        } else {
+                            mInstallHandler.install(context.getApplicationContext(), mModDetail, versionPosition);
+                        }
+                    });
                     mExtendedSpinner.setAdapter(mLoadingAdapter);
                 } else {
                     if(isExtended()) closeDetailedView();
@@ -296,6 +312,16 @@ public class ModItemAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 mExtendedSpinner.setAdapter(null);
                 mVersionAdapter.setObjects(null);
             }
+        }
+
+        /** Detect cellular transport so large mod downloads are not started silently. */
+        private boolean isUsingMobileData(Context context) {
+            ConnectivityManager manager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (manager == null) return false;
+            Network activeNetwork = manager.getActiveNetwork();
+            if (activeNetwork == null) return false;
+            NetworkCapabilities capabilities = manager.getNetworkCapabilities(activeNetwork);
+            return capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR);
         }
 
         private void openDetailedView() {
