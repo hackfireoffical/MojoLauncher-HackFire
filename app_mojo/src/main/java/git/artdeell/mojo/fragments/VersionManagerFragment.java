@@ -92,7 +92,7 @@ public class VersionManagerFragment extends Fragment {
         addNavButton(navigation, "Resource Packs", () -> openFolder("resourcepacks"));
         addNavButton(navigation, "Shader Packs", () -> openFolder("shaderpacks"));
         addNavButton(navigation, "Screenshots", () -> openFolder("screenshots"));
-        addNavButton(navigation, "Servers", () -> openFolder("servers"));
+        addNavButton(navigation, "Servers", this::openServers);
 
         content = new LinearLayout(requireContext());
         content.setOrientation(LinearLayout.VERTICAL);
@@ -135,7 +135,7 @@ public class VersionManagerFragment extends Fragment {
         addAction("Screenshots", () -> openFolder("screenshots"));
         addAction("Logs", () -> openFolder("logs"));
         addAction("Crash Reports", () -> openFolder("crash-reports"));
-        addAction("Servers", () -> openFolder("servers"));
+        addAction("Servers", this::openServers);
     }
 
     private void addSection(String text) {
@@ -247,6 +247,13 @@ public class VersionManagerFragment extends Fragment {
             while ((count = input.read(buffer)) != -1) zip.write(buffer, 0, count);
         }
         zip.closeEntry();
+    }
+
+    private void openServers() {
+        if (instance == null) return;
+        File servers = new File(instance.getGameDirectory(), "servers.dat");
+        if (servers.isFile()) Tools.openPath(requireContext(), servers, false);
+        else Toast.makeText(requireContext(), "No saved servers in this installation yet", Toast.LENGTH_SHORT).show();
     }
 
     private void openFolder(String child) {
