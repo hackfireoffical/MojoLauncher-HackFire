@@ -8,6 +8,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ImageView;
 import android.widget.ScrollView;
 import android.widget.HorizontalScrollView;
 import android.widget.TextView;
@@ -24,6 +25,7 @@ import git.artdeell.mojo.fragments.instance.InstanceEditorFragment;
 import git.artdeell.mojo.fragments.modding.ModManagerFragment;
 import git.artdeell.mojo.instances.Instance;
 import git.artdeell.mojo.instances.Instances;
+import git.artdeell.mojo.instances.InstanceIconProvider;
 import git.artdeell.mojo.modding.PlatformMetadata;
 import git.artdeell.mojo.modding.modplatforms.models.ModrinthIndex;
 import me.andreasmelone.basicmodinfoparser.platform.Platform;
@@ -112,8 +114,7 @@ public class VersionManagerFragment extends Fragment {
         addSection("Installation");
         String description = instance.description == null || instance.description.trim().isEmpty()
                 ? "" : "\n" + instance.description;
-        addText(content, instance.name + "\nMinecraft " + instance.versionId + description +
-                (instance.moddingData == null ? "\nVanilla installation" : "\nModded installation · " + instance.moddingData.platform));
+        addInstanceCard(instance, description);
         addAction("Set as Home profile", () -> {
             Instances.setSelectedInstance(instance);
             Toast.makeText(requireContext(), "Installation selected for Home", Toast.LENGTH_SHORT).show();
@@ -143,6 +144,37 @@ public class VersionManagerFragment extends Fragment {
         addAction("Logs", () -> openFolder("logs"));
         addAction("Crash Reports", () -> openFolder("crash-reports"));
         addAction("Servers", this::openServers);
+    }
+
+    private void addInstanceCard(Instance profile, String description) {
+        LinearLayout card = new LinearLayout(requireContext());
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        card.setPadding(dp(14), dp(14), dp(14), dp(14));
+        card.setBackgroundResource(R.drawable.background_line);
+        ImageView icon = new ImageView(requireContext());
+        icon.setImageDrawable(InstanceIconProvider.fetchIcon(getResources(), profile));
+        icon.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        card.addView(icon, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        LinearLayout textColumn = new LinearLayout(requireContext());
+        textColumn.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(0, -2, 1);
+        textParams.leftMargin = dp(14);
+        card.addView(textColumn, textParams);
+        TextView name = new TextView(requireContext());
+        name.setText(profile.name);
+        name.setTextSize(17);
+        name.setTextColor(getResources().getColor(R.color.primary_text));
+        textColumn.addView(name);
+        TextView details = new TextView(requireContext());
+        details.setText("Minecraft " + profile.versionId + description +
+                (profile.moddingData == null ? " · Vanilla" : " · " + profile.moddingData.platform));
+        details.setTextSize(13);
+        details.setTextColor(getResources().getColor(R.color.secondary_text));
+        textColumn.addView(details);
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(-1, -2);
+        cardParams.bottomMargin = dp(8);
+        content.addView(card, cardParams);
     }
 
     private void addSection(String text) {
