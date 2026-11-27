@@ -9,6 +9,27 @@ public class ProgressKeeper {
     private static final HashMap<String, List<ProgressListener>> sProgressListeners = new HashMap<>();
     private static final HashMap<String, ProgressState> sProgressStates = new HashMap<>();
     private static final List<TaskCountListener> sTaskCountListeners = new ArrayList<>();
+    private static final HashMap<String, Runnable> sCancellationActions = new HashMap<>();
+
+    /** Register a cooperative cancellation action for the currently running task. */
+    public static synchronized void registerCancellation(String key, Runnable action) {
+        if (action == null) sCancellationActions.remove(key);
+        else sCancellationActions.put(key, action);
+    }
+
+    public static synchronized void unregisterCancellation(String key, Runnable action) {
+        if (sCancellationActions.get(key) == action) sCancellationActions.remove(key);
+    }
+
+    public static void cancelTask(String key) {
+        Runnable action;
+        synchronized (ProgressKeeper.class) { action = sCancellationActions.get(key); }
+        if (action != null) action.run();
+    }
+
+    public static synchronized boolean canCancelTask(String key) {
+        return sCancellationActions.containsKey(key);
+    }
 
     public static synchronized void submitProgress(String progressRecord, int progress, int resid, Object... va) {
         ProgressState progressState = sProgressStates.get(progressRecord);
@@ -17,6 +38,7 @@ public class ProgressKeeper {
         if(shouldCallEnded) {
             shouldCallStarted = false;
             sProgressStates.remove(progressRecord);
+            sCancellationActions.remove(progressRecord);
         }else if(shouldCallStarted){
             sProgressStates.put(progressRecord, (progressState = new ProgressState()));
         }

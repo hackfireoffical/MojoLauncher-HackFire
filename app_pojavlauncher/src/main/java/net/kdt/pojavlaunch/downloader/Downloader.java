@@ -40,19 +40,51 @@ public class Downloader {
     private final SpeedCalculator mSpeedCalculator = new SpeedCalculator();
     private ExecutorService mDownloadService;
     private ExecutorService mVerifyService;
+    private ExecutorService mMetadataService;
+    private volatile boolean mCancelled;
+    private final Runnable mCancellationAction = this::cancel;
+
+    /** Stop active transfers and verification workers for this progress task. */
+    public void cancel() {
+        mCancelled = true;
+        IOException cancelled = new IOException("Download cancelled by user");
+        mThreadException.compareAndSet(null, cancelled);
+        ExecutorService downloadService = mDownloadService;
+        ExecutorService verifyService = mVerifyService;
+        if (downloadService != null) downloadService.shutdownNow();
+        if (verifyService != null) verifyService.shutdownNow();
+        ExecutorService metadataService = mMetadataService;
+        if (metadataService != null) metadataService.shutdownNow();
+    }
+
+    private void checkCancelled() throws IOException {
+        if (mCancelled || Thread.currentThread().isInterrupted())
+            throw new IOException("Download cancelled by user");
+    }
 
     public Downloader(String mProgressKey) {
         this.mProgressKey = mProgressKey;
     }
 
     protected void runDownloads(ArrayList<? extends TaskMetadata> downloads) throws IOException, InterruptedException {
+        mCancelled = false;
+        net.kdt.pojavlaunch.progresskeeper.ProgressKeeper.registerCancellation(mProgressKey, mCancellationAction);
         try {
-            insertMetadata(downloads);
-        }catch (IOException e) {
-            Log.w("Downloader", "Failed to complete the task metadata!", e);
-            disableSizeCounter();
+            try {
+                insertMetadata(downloads);
+            } catch (IOException e) {
+                if (mCancelled) throw e;
+                Log.w("Downloader", "Failed to complete the task metadata!", e);
+                disableSizeCounter();
+            }
+            checkCancelled();
+            performDownloads(downloads);
+        } catch (IOException | InterruptedException e) {
+            if (mCancelled) throw new IOException("Download cancelled by user", e);
+            throw e;
+        } finally {
+            net.kdt.pojavlaunch.progresskeeper.ProgressKeeper.unregisterCancellation(mProgressKey, mCancellationAction);
         }
-        performDownloads(downloads);
     }
 
     private void performDownloads(ArrayList<? extends TaskMetadata> metadata) throws IOException, InterruptedException {
@@ -76,6 +108,7 @@ public class Downloader {
         }
         double totalMegabytes = totalSize / ONE_MEGABYTE;
         while(mDownloadedFileCounter.get() < totalCount) {
+            checkCancelled();
             IOException exception = mThreadException.get();
             if(exception != null) throw exception;
             if(sizeCounter) reportSizeProgress(totalMegabytes);
@@ -99,14 +132,19 @@ public class Downloader {
             reducedList.add(element);
         }
         if(reducedList.isEmpty()) return;
-        try (ExecutorService executorService = Executors.newFixedThreadPool(4)) {
+        ExecutorService executorService = Executors.newFixedThreadPool(4);
+        mMetadataService = executorService;
+        try {
             for(TaskMetadata element : reducedList) executorService.submit(new CompleteMetadataTask(element, this));
             executorService.shutdown();
             while (!executorService.awaitTermination(33, TimeUnit.MILLISECONDS)) {
+                checkCancelled();
                 IOException exception = mThreadException.get();
                 if(exception != null) throw exception;
                 reportCountProgress(R.string.newerdl_inserting_metadata_count, reducedList.size());
             }
+        } finally {
+            mMetadataService = null;
         }
     }
 
@@ -158,6 +196,7 @@ public class Downloader {
         byte[] buffer = getBuffer();
         int readLen;
         while((readLen = inputStream.read(buffer)) != -1) {
+            if (mCancelled || Thread.currentThread().isInterrupted()) throw new IOException("Download cancelled by user");
             outputStream.write(buffer, 0, readLen);
             if(listener != null) listener.onBytesCopied(readLen);
             mInternetUsageCounter.getAndAdd(readLen);

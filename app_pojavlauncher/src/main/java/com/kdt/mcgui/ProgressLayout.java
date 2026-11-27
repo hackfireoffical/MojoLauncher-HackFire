@@ -13,6 +13,8 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
@@ -41,6 +43,7 @@ public class ProgressLayout extends ConstraintLayout implements View.OnClickList
     private TextView mTaskNumberDisplayer;
     private TextView mFlipArrow;
     private ScrollView mTaskScroll;
+    private TextView mCancelAll;
     private boolean mExpanded;
 
     public ProgressLayout(@NonNull Context context) { super(context); init(); }
@@ -61,6 +64,15 @@ public class ProgressLayout extends ConstraintLayout implements View.OnClickList
         mTaskNumberDisplayer = findViewById(R.id.progress_textview);
         mFlipArrow = findViewById(R.id.progress_flip_arrow);
         mTaskScroll = findViewById(R.id.progress_scroll);
+        mCancelAll = findViewById(R.id.progress_cancel_all);
+        mCancelAll.setOnClickListener(v -> new AlertDialog.Builder(getContext())
+                .setTitle("Cancel active download?")
+                .setMessage("The current downloadable task will be stopped. Partially downloaded files may need to be downloaded again.")
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton("Cancel download", (dialog, which) -> {
+                    for (String key : new String[]{DOWNLOAD_MINECRAFT, INSTALL_MODPACK})
+                        net.kdt.pojavlaunch.progresskeeper.ProgressKeeper.cancelTask(key);
+                }).show());
         findViewById(R.id.progress_header).setOnClickListener(this);
         setVisibility(GONE);
     }
@@ -90,6 +102,9 @@ public class ProgressLayout extends ConstraintLayout implements View.OnClickList
         post(() -> {
             if (count > 0) {
                 mTaskNumberDisplayer.setText(getContext().getString(R.string.progresslayout_tasks_in_progress, count));
+                boolean canCancel = net.kdt.pojavlaunch.progresskeeper.ProgressKeeper.canCancelTask(DOWNLOAD_MINECRAFT)
+                        || net.kdt.pojavlaunch.progresskeeper.ProgressKeeper.canCancelTask(INSTALL_MODPACK);
+                mCancelAll.setVisibility(canCancel ? VISIBLE : GONE);
                 if (!mExpanded) {
                     mExpanded = true;
                     mTaskScroll.setVisibility(VISIBLE);
@@ -98,6 +113,7 @@ public class ProgressLayout extends ConstraintLayout implements View.OnClickList
                 setVisibility(VISIBLE);
             } else {
                 setVisibility(GONE);
+                mCancelAll.setVisibility(GONE);
                 mExpanded = false;
                 mTaskScroll.setVisibility(GONE);
                 mFlipArrow.setText("⌃");
@@ -133,6 +149,7 @@ public class ProgressLayout extends ConstraintLayout implements View.OnClickList
         final TextView titleView;
         final TextView statusView;
         final TextView percentView;
+        final TextView cancelView;
         final ProgressBar progressBar;
         final LinearLayout.LayoutParams cardParams;
 
@@ -161,6 +178,20 @@ public class ProgressLayout extends ConstraintLayout implements View.OnClickList
             percentView.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
             percentView.setText("…");
             heading.addView(percentView);
+            cancelView = new TextView(context);
+            cancelView.setText("  Cancel");
+            cancelView.setTextColor(Color.rgb(240, 165, 165));
+            cancelView.setTextSize(11);
+            cancelView.setPadding(dp(8), dp(4), 0, dp(4));
+            cancelView.setVisibility(GONE);
+            cancelView.setOnClickListener(v -> new AlertDialog.Builder(getContext())
+                    .setTitle("Cancel this task?")
+                    .setMessage("The download will stop. Any incomplete file may need to be downloaded again.")
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton("Cancel task", (dialog, which) ->
+                            net.kdt.pojavlaunch.progresskeeper.ProgressKeeper.cancelTask(progressKey))
+                    .show());
+            heading.addView(cancelView);
             card.addView(heading);
 
             statusView = new TextView(context);
@@ -189,6 +220,10 @@ public class ProgressLayout extends ConstraintLayout implements View.OnClickList
 
         @Override public void onProgressUpdated(int progress, int resid, Object... args) {
             post(() -> {
+                cancelView.setVisibility(net.kdt.pojavlaunch.progresskeeper.ProgressKeeper.canCancelTask(progressKey) ? VISIBLE : GONE);
+                boolean anyCancelable = net.kdt.pojavlaunch.progresskeeper.ProgressKeeper.canCancelTask(DOWNLOAD_MINECRAFT)
+                        || net.kdt.pojavlaunch.progresskeeper.ProgressKeeper.canCancelTask(INSTALL_MODPACK);
+                mCancelAll.setVisibility(anyCancelable ? VISIBLE : GONE);
                 if (progress < 0) {
                     progressBar.setIndeterminate(true);
                     percentView.setText("Working");
