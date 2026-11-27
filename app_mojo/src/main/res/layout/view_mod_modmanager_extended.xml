@@ -12,6 +12,17 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent" />
+    <ImageButton
+        android:id="@+id/mod_manager_info_button"
+        android:layout_width="45dp"
+        android:layout_height="45dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Mod information"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_info_outline"
+        app:layout_constraintStart_toEndOf="@id/mod_manager_delete_button"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
     <androidx.appcompat.widget.SwitchCompat
         android:id="@+id/mod_manager_disable_button"
         android:layout_width="45dp"

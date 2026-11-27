@@ -184,7 +184,7 @@ public class ModAdapter extends RecyclerView.Adapter<ModAdapter.ViewHolder> {
             if(description == null) mDescription.setText(R.string.mod_manager_mod_unknown_description);
             else mDescription.setText(description);
             if(version == null) mVersion.setText(R.string.mod_manager_mod_unknown_version);
-            else mVersion.setText(version.toString());
+            else mVersion.setText(version.toString() + " · " + mPlatform.name());
             applyThumbnail(containedModInfo.modFile);
         }
 
@@ -293,14 +293,38 @@ public class ModAdapter extends RecyclerView.Adapter<ModAdapter.ViewHolder> {
         }
     }
 
+    private void showModInfo(Context context, ModInfo modInfo) {
+        StringBuilder details = new StringBuilder();
+        details.append("File: ").append(modInfo.jarFile.getName());
+        details.append("\nLoader: ").append(mPlatform.name());
+        details.append("\nStatus: ").append(modInfo.disabled ? "Disabled" : "Enabled");
+        if (modInfo instanceof ContainedModInfo) {
+            try {
+                BasicModInfo info = ((ContainedModInfo) modInfo).modFile.getInfo(mPlatform)[0];
+                if (info.getName() != null) details.insert(0, info.getName() + "\n\n");
+                if (info.getVersion() != null) details.append("\nVersion: ").append(info.getVersion());
+                if (info.getDescription() != null) details.append("\n\n").append(info.getDescription());
+            } catch (Exception ignored) { }
+        } else {
+            details.insert(0, "Unreadable mod file\n\n");
+        }
+        new AlertDialog.Builder(context)
+                .setTitle("Mod information")
+                .setMessage(details.toString())
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
+    }
+
     private class ExpandedViewHolder extends ViewHolder {
         private final SwitchCompat disable;
         public ExpandedViewHolder(@NonNull View itemView) {
             super(itemView);
             View expansionView = ((ViewStub) itemView.findViewById(R.id.mod_limited_state_stub)).inflate();
             ImageButton delete = expansionView.findViewById(R.id.mod_manager_delete_button);
+            ImageButton info = expansionView.findViewById(R.id.mod_manager_info_button);
             disable = expansionView.findViewById(R.id.mod_manager_disable_button);
             delete.setOnClickListener(v -> deleteModWithDependencies(v.getContext(), mModInfo));
+            info.setOnClickListener(v -> showModInfo(v.getContext(), mModInfo));
             disable.setOnClickListener(v -> {
                 toggleModWithDependencies(itemView.getContext(), mModInfo, mIndex);
                 disable.setChecked(!mModInfo.disabled);
