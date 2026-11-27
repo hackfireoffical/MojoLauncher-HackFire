@@ -37,6 +37,8 @@ public class ModpackInstaller {
         ModLoader modLoaderInfo;
         Instance instance = InstanceManager.createInstance(i->{
             i.name = modDetail.title;
+            i.modpackProjectId = modDetail.id;
+            i.modpackApiSource = modDetail.apiSource;
         }, modpackName.substring(0, Math.min(16,modpackName.length())));
         try {
             byte[] downloadBuffer = new byte[8192];

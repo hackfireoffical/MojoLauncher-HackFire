@@ -32,6 +32,9 @@ public class Instance {
     public String controlLayout;
     public String icon;
     public boolean sharedData;
+    /** Modrinth/CurseForge project identity for instances installed from a modpack. */
+    public String modpackProjectId;
+    public int modpackApiSource;
 
     protected Instance() {
     }

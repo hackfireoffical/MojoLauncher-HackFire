@@ -299,7 +299,11 @@ public class ModItemAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         private void updateInstalledBadge(ModItem item) {
             Instance selected = InstanceManager.getSelectedListedInstance();
             boolean installed = item.isModpack && selected != null
-                    && selected.name != null && selected.name.trim().equalsIgnoreCase(item.title.trim());
+                    && ((selected.modpackProjectId != null
+                            && selected.modpackProjectId.equals(item.id)
+                            && selected.modpackApiSource == item.apiSource)
+                        || (selected.modpackProjectId == null && selected.name != null
+                            && selected.name.trim().equalsIgnoreCase(item.title.trim())));
             mInstalledBadge.setVisibility(installed ? View.VISIBLE : View.GONE);
         }
 
