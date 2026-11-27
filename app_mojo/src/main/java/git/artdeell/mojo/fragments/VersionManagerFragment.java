@@ -114,10 +114,17 @@ public class VersionManagerFragment extends Fragment {
                 ? "" : "\n" + instance.description;
         addText(content, instance.name + "\nMinecraft " + instance.versionId + description +
                 (instance.moddingData == null ? "\nVanilla installation" : "\nModded installation · " + instance.moddingData.platform));
-        addAction("Custom Icon · Rename · Runtime · Renderer · Controls", () -> open(InstanceEditorFragment.class, InstanceEditorFragment.TAG));
+        addAction("Add card to Home screen · Set as selected profile", () -> {
+            Instances.setSelectedInstance(instance);
+            Toast.makeText(requireContext(), "Installation selected for Home", Toast.LENGTH_SHORT).show();
+        });
+        addAction("Custom Icon", () -> open(InstanceEditorFragment.class, InstanceEditorFragment.TAG));
+        addAction("Edit Description", () -> open(InstanceEditorFragment.class, InstanceEditorFragment.TAG));
+        addAction("Rename Version", () -> open(InstanceEditorFragment.class, InstanceEditorFragment.TAG));
         addAction("Modify Minecraft / Install Loader", () -> open(ModifyVersionFragment.class, ModifyVersionFragment.TAG));
         addAction("Install Modpack", () -> open(git.artdeell.mojo.fragments.modding.ModpackSearchFragment.class, git.artdeell.mojo.fragments.modding.ModpackSearchFragment.TAG));
         addAction("Export Modpack (.mrpack)", () -> exportLauncher.launch(instance.name.replaceAll("[^A-Za-z0-9._ -]", "_") + ".mrpack"));
+        addAction("Delete Version", () -> open(InstanceEditorFragment.class, InstanceEditorFragment.TAG));
         addSection("Management");
         addAction("Manage Mods", () -> open(ModManagerFragment.class, ModManagerFragment.TAG));
         addAction("Running Log · Share latest log", () -> {
