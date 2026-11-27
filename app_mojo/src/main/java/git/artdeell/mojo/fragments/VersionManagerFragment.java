@@ -1,12 +1,12 @@
 package git.artdeell.mojo.fragments;
 
 import android.os.Bundle;
-import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.HorizontalScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -62,14 +62,21 @@ public class VersionManagerFragment extends Fragment {
         subtitle.setTextColor(getResources().getColor(R.color.secondary_text));
         root.addView(subtitle);
 
+        HorizontalScrollView navScroll = new HorizontalScrollView(requireContext());
+        navScroll.setHorizontalScrollBarEnabled(false);
         LinearLayout navigation = new LinearLayout(requireContext());
         navigation.setOrientation(LinearLayout.HORIZONTAL);
-        navigation.setGravity(Gravity.CENTER_VERTICAL);
-        root.addView(navigation);
+        navScroll.addView(navigation);
+        root.addView(navScroll);
         addNavButton(navigation, "Overview", this::showOverview);
         addNavButton(navigation, "Configuration", () -> open(InstanceEditorFragment.class, InstanceEditorFragment.TAG));
-        addNavButton(navigation, "Add Loader", () -> open(InstanceTypeSelectFragment.class, InstanceTypeSelectFragment.TAG));
+        addNavButton(navigation, "Modify Version", () -> open(InstanceTypeSelectFragment.class, InstanceTypeSelectFragment.TAG));
         addNavButton(navigation, "Mods", () -> open(ModManagerFragment.class, ModManagerFragment.TAG));
+        addNavButton(navigation, "Saves", () -> openFolder("saves"));
+        addNavButton(navigation, "Resource Packs", () -> openFolder("resourcepacks"));
+        addNavButton(navigation, "Shader Packs", () -> openFolder("shaderpacks"));
+        addNavButton(navigation, "Screenshots", () -> openFolder("screenshots"));
+        addNavButton(navigation, "Servers", () -> openFolder("servers"));
 
         content = new LinearLayout(requireContext());
         content.setOrientation(LinearLayout.VERTICAL);
@@ -87,21 +94,28 @@ public class VersionManagerFragment extends Fragment {
             return;
         }
         addSection("Installation");
-        addText(content, instance.name + "\nMinecraft " + instance.versionId);
-        addAction("Edit Description / Rename Version", () -> open(InstanceEditorFragment.class, InstanceEditorFragment.TAG));
-        addAction("Add Loader / Modpack", () -> open(InstanceTypeSelectFragment.class, InstanceTypeSelectFragment.TAG));
+        addText(content, instance.name + "\nMinecraft " + instance.versionId +
+                (instance.moddingData == null ? "\nVanilla installation" : "\nModded installation · " + instance.moddingData.platform));
+        addAction("Custom Icon · Rename · Runtime · Renderer · Controls", () -> open(InstanceEditorFragment.class, InstanceEditorFragment.TAG));
+        addAction("Add or Modify Loader / Install Modpack", () -> open(InstanceTypeSelectFragment.class, InstanceTypeSelectFragment.TAG));
         addSection("Management");
-        addAction("Mods", () -> open(ModManagerFragment.class, ModManagerFragment.TAG));
+        addAction("Manage Mods", () -> open(ModManagerFragment.class, ModManagerFragment.TAG));
+        addAction("Running Log · Share latest log", () -> {
+            File log = new File(instance.getGameDirectory(), "logs/latest.log");
+            if (!log.exists()) log = new File(instance.getGameDirectory(), "latestlog.txt");
+            if (log.exists()) Tools.openPath(requireContext(), log, true);
+            else Toast.makeText(requireContext(), "No log file is available yet", Toast.LENGTH_SHORT).show();
+        });
+        addSection("Quick Actions · Installation Folders");
+        addAction("Version Folder", () -> openFolder("."));
         addAction("Saves", () -> openFolder("saves"));
         addAction("Resource Packs", () -> openFolder("resourcepacks"));
         addAction("Shader Packs", () -> openFolder("shaderpacks"));
+        addAction("Mods", () -> openFolder("mods"));
         addAction("Screenshots", () -> openFolder("screenshots"));
-        addAction("Servers", () -> openFolder("servers"));
-        addSection("Quick Actions");
-        addAction("Version Folder", () -> openFolder("."));
-        addAction("Mods Folder", () -> openFolder("mods"));
         addAction("Logs", () -> openFolder("logs"));
         addAction("Crash Reports", () -> openFolder("crash-reports"));
+        addAction("Servers", () -> openFolder("servers"));
     }
 
     private void addSection(String text) {
@@ -136,7 +150,9 @@ public class VersionManagerFragment extends Fragment {
         Button button = new Button(requireContext());
         button.setText(text);
         button.setAllCaps(false);
-        parent.addView(button, new LinearLayout.LayoutParams(0, -2, 1));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
+        lp.rightMargin = dp(6);
+        parent.addView(button, lp);
         button.setOnClickListener(v -> action.run());
     }
 

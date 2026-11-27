@@ -55,15 +55,32 @@
         android:layout_height="0dp"
         android:id="@+id/mod_manager_recyclerview"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/mod_manager_import_button"/>
+        app:layout_constraintBottom_toTopOf="@id/mod_manager_actions"/>
 
-    <com.kdt.mcgui.MineButton
-        android:id="@+id/mod_manager_import_button"
+    <LinearLayout
+        android:id="@+id/mod_manager_actions"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="@dimen/padding_moderate"
-        android:layout_marginHorizontal="@dimen/padding_moderate"
-        android:text="@string/mod_manager_import_mod"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingHorizontal="@dimen/padding_moderate"
+        android:paddingBottom="@dimen/padding_moderate"
+        app:layout_constraintBottom_toBottomOf="parent">
 
+        <com.kdt.mcgui.MineButton
+            android:id="@+id/mod_manager_import_button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="6dp"
+            android:text="Import .jar" />
+
+        <com.kdt.mcgui.MineButton
+            android:id="@+id/mod_manager_download_button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:text="Download" />
+    </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

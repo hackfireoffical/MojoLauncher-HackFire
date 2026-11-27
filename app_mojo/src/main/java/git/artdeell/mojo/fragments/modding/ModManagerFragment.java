@@ -2,6 +2,8 @@ package git.artdeell.mojo.fragments.modding;
 
 import android.content.Context;
 import android.net.Uri;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -24,7 +26,6 @@ import git.artdeell.mojo.modding.modmanager.DependencyScanner;
 import git.artdeell.mojo.modding.modmanager.ModAdapter;
 import git.artdeell.mojo.modding.modmanager.ModInfo;
 import git.artdeell.mojo.modding.modmanager.ModScanner;
-import git.artdeell.mojo.utils.FileUtils;
 
 import org.apache.commons.io.IOUtils;
 
@@ -46,6 +47,32 @@ public class ModManagerFragment extends Fragment {
     private File mModsFolder;
 
     private Instance mInstance;
+    private final ActivityResultLauncher<Object> mModImportLauncher =
+            registerForActivityResult(new OpenDocumentWithExtension("jar"), uri -> {
+                if (uri == null || getContext() == null || mInstance == null) return;
+                Context context = requireContext();
+                String fileName = Tools.getFileName(context, uri);
+                MojoApplication.sExecutorService.execute(() -> importMod(context, uri, fileName));
+            });
+
+    private void importMod(Context context, Uri uri, String fileName) {
+        try {
+            if (!mModsFolder.exists() && !mModsFolder.mkdirs()) throw new IOException("Unable to create mods folder");
+            File target = new File(mModsFolder, fileName);
+            try (InputStream input = context.getContentResolver().openInputStream(uri);
+                 OutputStream output = new FileOutputStream(target)) {
+                if (input == null) throw new IOException("Unable to read selected file");
+                IOUtils.copy(input, output);
+            }
+            Tools.runOnUiThread(() -> {
+                if (!isAdded()) return;
+                android.widget.Toast.makeText(requireContext(), "Mod imported", android.widget.Toast.LENGTH_SHORT).show();
+                refreshModsList();
+            });
+        } catch (IOException error) {
+            Tools.runOnUiThread(() -> Tools.showErrorRemote(error));
+        }
+    }
 
     public ModManagerFragment() {
         super(R.layout.fragment_mod_manager);
@@ -74,27 +101,31 @@ public class ModManagerFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         mInstance = Instances.loadSelectedInstance();
+        if (mInstance == null) {
+            Tools.backToMainMenu(requireActivity());
+            return;
+        }
         mModsFolder = new File(mInstance.getGameDirectory(), "mods");
         mModRecyclerView = view.findViewById(R.id.mod_manager_recyclerview);
         mProgressBar = view.findViewById(R.id.search_mod_progressbar);
         View mOverlay = view.findViewById(R.id.search_mod_overlay);
         Button mImportButton = view.findViewById(R.id.mod_manager_import_button);
-        mImportButton.setOnClickListener(v->{
-            if(mInstance == null) {
-                throw new IllegalArgumentException("Instance is null!");
-            }
-            Bundle b = new Bundle();
-            Tools.swapFragment(requireActivity(), ModSearchFragment.class, ModSearchFragment.TAG, b);
-        });
+        Button mDownloadButton = view.findViewById(R.id.mod_manager_download_button);
+        mImportButton.setOnClickListener(v -> mModImportLauncher.launch(null));
+        mDownloadButton.setOnClickListener(v ->
+                Tools.swapFragment(requireActivity(), ModSearchFragment.class, ModSearchFragment.TAG, new Bundle()));
         mSearchEditText = view.findViewById(R.id.search_mod_edittext);
-        mSearchEditText.setOnEditorActionListener(((textView, i, keyEvent) -> {
-            String searchText = mSearchEditText.getText().toString().toLowerCase();
-            ModAdapter modAdapter = (ModAdapter) mModRecyclerView.getAdapter();
-            if(modAdapter != null) {
-                modAdapter.performSearch(m->m.searchTerms.contains(searchText), mProgressBar);
+        mSearchEditText.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                ModAdapter adapter = (ModAdapter) mModRecyclerView.getAdapter();
+                if (adapter != null) {
+                    String query = s.toString().trim().toLowerCase();
+                    adapter.performSearch(mod -> query.isEmpty() || mod.searchTerms.contains(query), mProgressBar);
+                }
             }
-            return true;
-        }));
+            @Override public void afterTextChanged(Editable s) { }
+        });
         mModRecyclerView.setLayoutManager(new LinearLayoutManager(view.getContext()));
         Tools.setupOverlayView(mModRecyclerView, mOverlay);
     }
