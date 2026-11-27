@@ -21,6 +21,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.kdt.SimpleArrayAdapter;
 
 import net.kdt.pojavlaunch.PojavApplication;
+import net.kdt.pojavlaunch.instances.Instance;
+import net.kdt.pojavlaunch.instances.InstanceManager;
 import git.artdeell.mojo.R;
 import net.kdt.pojavlaunch.Tools;
 import net.kdt.pojavlaunch.modloaders.modpacks.api.ModpackApi;
@@ -34,6 +36,8 @@ import net.kdt.pojavlaunch.modloaders.modpacks.models.SearchResult;
 import net.kdt.pojavlaunch.progresskeeper.TaskCountListener;
 
 import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Collections;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -161,6 +165,8 @@ public class ModItemAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         private Bitmap mThumbnailBitmap;
         private ImageReceiver mImageReceiver;
         private boolean mInstallEnabled;
+        private int[] mVersionIndices = new int[0];
+        private final TextView mInstalledBadge;
 
         /* Used to display available versions of the mod(pack) */
         private final SimpleArrayAdapter<String> mVersionAdapter = new SimpleArrayAdapter<>(null);
@@ -176,10 +182,14 @@ public class ModItemAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     mExtendedSpinner = mExtendedLayout.findViewById(R.id.mod_extended_version_spinner);
                     mExtendedErrorTextView = mExtendedLayout.findViewById(R.id.mod_extended_error_textview);
 
-                    mExtendedButton.setOnClickListener(v1 -> mModpackApi.handleModpackInstallation(
-                            mExtendedButton.getContext().getApplicationContext(),
-                            mModDetail,
-                            mExtendedSpinner.getSelectedItemPosition()));
+                    mExtendedButton.setOnClickListener(v1 -> {
+                        int position = mExtendedSpinner.getSelectedItemPosition();
+                        if (position >= 0 && position < mVersionIndices.length) {
+                            mModpackApi.handleModpackInstallation(
+                                    mExtendedButton.getContext().getApplicationContext(),
+                                    mModDetail, mVersionIndices[position]);
+                        }
+                    });
                     mExtendedSpinner.setAdapter(mLoadingAdapter);
                 } else {
                     if(isExtended()) closeDetailedView();
@@ -227,6 +237,7 @@ public class ModItemAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             mDescription = view.findViewById(R.id.mod_body_textview);
             mIconView = view.findViewById(R.id.mod_thumbnail_imageview);
             mSourceView = view.findViewById(R.id.mod_source_imageview);
+            mInstalledBadge = view.findViewById(R.id.mod_installed_badge);
         }
 
         /** Display basic info about the moditem */
@@ -261,6 +272,7 @@ public class ModItemAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             mSourceView.setImageResource(getSourceDrawable(item.apiSource));
             mTitle.setText(item.title);
             mDescription.setText(item.description);
+            updateInstalledBadge(item);
 
             if(hasExtended()){
                 closeDetailedView();
@@ -272,8 +284,7 @@ public class ModItemAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             if(detailedItem != null) {
                 setInstallEnabled(true);
                 mExtendedErrorTextView.setVisibility(View.GONE);
-                mVersionAdapter.setObjects(Arrays.asList(detailedItem.versionNames));
-                mExtendedSpinner.setAdapter(mVersionAdapter);
+                populateRecommendedVersions(detailedItem);
             } else {
                 closeDetailedView();
                 setInstallEnabled(false);
@@ -281,6 +292,53 @@ public class ModItemAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 mExtendedSpinner.setAdapter(null);
                 mVersionAdapter.setObjects(null);
             }
+        }
+
+
+        /** Mark a project when the selected instance was created from this exact modpack. */
+        private void updateInstalledBadge(ModItem item) {
+            Instance selected = InstanceManager.getSelectedListedInstance();
+            boolean installed = item.isModpack && selected != null
+                    && selected.name != null && selected.name.trim().equalsIgnoreCase(item.title.trim());
+            mInstalledBadge.setVisibility(installed ? View.VISIBLE : View.GONE);
+        }
+
+        /** Put the version matching the currently selected instance first and mark it clearly. */
+        private void populateRecommendedVersions(ModDetail detail) {
+            String selectedGameVersion = getMinecraftVersion(InstanceManager.getSelectedListedInstance());
+            List<String> labels = new ArrayList<>();
+            List<Integer> indices = new ArrayList<>();
+            int recommendedIndex = -1;
+            if (selectedGameVersion != null && detail.mcVersionNames != null) {
+                for (int i = 0; i < detail.mcVersionNames.length; i++) {
+                    if (selectedGameVersion.equals(detail.mcVersionNames[i])) {
+                        recommendedIndex = i;
+                        break;
+                    }
+                }
+            }
+            if (recommendedIndex >= 0) {
+                labels.add("★ Recommended · " + detail.versionNames[recommendedIndex]);
+                indices.add(recommendedIndex);
+            }
+            for (int i = 0; i < detail.versionNames.length; i++) {
+                if (i == recommendedIndex) continue;
+                labels.add(detail.versionNames[i]);
+                indices.add(i);
+            }
+            mVersionIndices = new int[indices.size()];
+            for (int i = 0; i < indices.size(); i++) mVersionIndices[i] = indices.get(i);
+            mVersionAdapter.setObjects(labels);
+            mExtendedSpinner.setAdapter(mVersionAdapter);
+            if (recommendedIndex >= 0) mExtendedSpinner.setSelection(0);
+        }
+
+        private String getMinecraftVersion(Instance instance) {
+            if (instance == null || instance.versionId == null) return null;
+            java.util.regex.Matcher matcher = java.util.regex.Pattern
+                    .compile("(?:^|[^0-9])(\\d+\\.\\d+(?:\\.\\d+)?)(?:$|[^0-9])")
+                    .matcher(instance.versionId);
+            return matcher.find() ? matcher.group(1) : null;
         }
 
         private void openDetailedView() {
