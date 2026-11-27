@@ -21,7 +21,6 @@ import git.artdeell.mojo.R;
 import git.artdeell.mojo.Tools;
 import git.artdeell.mojo.MojoApplication;
 import git.artdeell.mojo.fragments.instance.InstanceEditorFragment;
-import git.artdeell.mojo.fragments.instance.InstanceTypeSelectFragment;
 import git.artdeell.mojo.fragments.modding.ModManagerFragment;
 import git.artdeell.mojo.instances.Instance;
 import git.artdeell.mojo.instances.Instances;
@@ -87,7 +86,7 @@ public class VersionManagerFragment extends Fragment {
         root.addView(navScroll);
         addNavButton(navigation, "Overview", this::showOverview);
         addNavButton(navigation, "Configuration", () -> open(InstanceEditorFragment.class, InstanceEditorFragment.TAG));
-        addNavButton(navigation, "Modify Version", () -> open(InstanceTypeSelectFragment.class, InstanceTypeSelectFragment.TAG));
+        addNavButton(navigation, "Modify Version", () -> open(ModifyVersionFragment.class, ModifyVersionFragment.TAG));
         addNavButton(navigation, "Mods", () -> open(ModManagerFragment.class, ModManagerFragment.TAG));
         addNavButton(navigation, "Saves", () -> openFolder("saves"));
         addNavButton(navigation, "Resource Packs", () -> openFolder("resourcepacks"));
@@ -116,7 +115,8 @@ public class VersionManagerFragment extends Fragment {
         addText(content, instance.name + "\nMinecraft " + instance.versionId + description +
                 (instance.moddingData == null ? "\nVanilla installation" : "\nModded installation · " + instance.moddingData.platform));
         addAction("Custom Icon · Rename · Runtime · Renderer · Controls", () -> open(InstanceEditorFragment.class, InstanceEditorFragment.TAG));
-        addAction("Add or Modify Loader / Install Modpack", () -> open(InstanceTypeSelectFragment.class, InstanceTypeSelectFragment.TAG));
+        addAction("Modify Minecraft / Install Loader", () -> open(ModifyVersionFragment.class, ModifyVersionFragment.TAG));
+        addAction("Install Modpack", () -> open(git.artdeell.mojo.fragments.modding.ModpackSearchFragment.class, git.artdeell.mojo.fragments.modding.ModpackSearchFragment.TAG));
         addAction("Export Modpack (.mrpack)", () -> exportLauncher.launch(instance.name.replaceAll("[^A-Za-z0-9._ -]", "_") + ".mrpack"));
         addSection("Management");
         addAction("Manage Mods", () -> open(ModManagerFragment.class, ModManagerFragment.TAG));
