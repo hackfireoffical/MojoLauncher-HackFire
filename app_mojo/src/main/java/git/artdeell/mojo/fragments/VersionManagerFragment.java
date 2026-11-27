@@ -1,6 +1,9 @@
 package git.artdeell.mojo.fragments;
 
 import android.os.Bundle;
+import android.net.Uri;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -16,13 +19,25 @@ import androidx.fragment.app.Fragment;
 
 import git.artdeell.mojo.R;
 import git.artdeell.mojo.Tools;
+import git.artdeell.mojo.MojoApplication;
 import git.artdeell.mojo.fragments.instance.InstanceEditorFragment;
 import git.artdeell.mojo.fragments.instance.InstanceTypeSelectFragment;
 import git.artdeell.mojo.fragments.modding.ModManagerFragment;
 import git.artdeell.mojo.instances.Instance;
 import git.artdeell.mojo.instances.Instances;
+import git.artdeell.mojo.modding.PlatformMetadata;
+import git.artdeell.mojo.modding.modplatforms.models.ModrinthIndex;
+import me.andreasmelone.basicmodinfoparser.platform.Platform;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * Per-installation hub inspired by the version-management workflow in Zalith Launcher 2.
@@ -32,6 +47,8 @@ public class VersionManagerFragment extends Fragment {
     public static final String TAG = "VersionManagerFragment";
     private Instance instance;
     private LinearLayout content;
+    private final ActivityResultLauncher<String> exportLauncher = registerForActivityResult(
+            new ActivityResultContracts.CreateDocument("application/x-modrinth-modpack"), this::exportToUri);
 
     public VersionManagerFragment() { super(); }
 
@@ -100,6 +117,7 @@ public class VersionManagerFragment extends Fragment {
                 (instance.moddingData == null ? "\nVanilla installation" : "\nModded installation · " + instance.moddingData.platform));
         addAction("Custom Icon · Rename · Runtime · Renderer · Controls", () -> open(InstanceEditorFragment.class, InstanceEditorFragment.TAG));
         addAction("Add or Modify Loader / Install Modpack", () -> open(InstanceTypeSelectFragment.class, InstanceTypeSelectFragment.TAG));
+        addAction("Export Modpack (.mrpack)", () -> exportLauncher.launch(instance.name.replaceAll("[^A-Za-z0-9._ -]", "_") + ".mrpack"));
         addSection("Management");
         addAction("Manage Mods", () -> open(ModManagerFragment.class, ModManagerFragment.TAG));
         addAction("Running Log · Share latest log", () -> {
@@ -156,6 +174,79 @@ public class VersionManagerFragment extends Fragment {
         lp.rightMargin = dp(6);
         parent.addView(button, lp);
         button.setOnClickListener(v -> action.run());
+    }
+
+
+    private void exportToUri(Uri destination) {
+        if (destination == null || instance == null) return;
+        Instance exportInstance = instance;
+        android.content.ContentResolver resolver = requireContext().getContentResolver();
+        MojoApplication.sExecutorService.execute(() -> {
+            try {
+                OutputStream output = resolver.openOutputStream(destination);
+                if (output == null) throw new IOException("Unable to open export destination");
+                try (OutputStream stream = output; ZipOutputStream zip = new ZipOutputStream(stream)) {
+                ModrinthIndex index = new ModrinthIndex();
+                index.formatVersion = 1;
+                index.game = "minecraft";
+                index.name = exportInstance.name;
+                index.versionId = exportInstance.versionId;
+                index.summary = exportInstance.description == null ? "Exported from Pleiades / Mojo Launcher" : exportInstance.description;
+                index.files = new ModrinthIndex.ModrinthIndexFile[0];
+                Map<String, String> dependencies = new LinkedHashMap<>();
+                dependencies.put("minecraft", exportInstance.moddingData == null ? exportInstance.versionId : exportInstance.moddingData.gameVersion);
+                PlatformMetadata metadata = exportInstance.moddingData;
+                if (metadata != null && metadata.platform != null && metadata.modloaderVersion != null) {
+                    switch (metadata.platform) {
+                        case FABRIC: dependencies.put("fabric-loader", metadata.modloaderVersion); break;
+                        case QUILT: dependencies.put("quilt-loader", metadata.modloaderVersion); break;
+                        case NEOFORGE: dependencies.put("neoforge", metadata.modloaderVersion); break;
+                        case FORGE:
+                        case FORGE_LEGACY: dependencies.put("forge", metadata.modloaderVersion); break;
+                        default: break;
+                    }
+                }
+                index.dependencies = dependencies;
+                zip.putNextEntry(new ZipEntry("modrinth.index.json"));
+                zip.write(Tools.GLOBAL_GSON.toJson(index).getBytes(StandardCharsets.UTF_8));
+                zip.closeEntry();
+                File gameDir = exportInstance.getGameDirectory();
+                String[] folders = {"mods", "config", "resourcepacks", "shaderpacks", "defaultconfigs", "kubejs", "scripts"};
+                for (String folder : folders) {
+                    File source = new File(gameDir, folder);
+                    if (source.exists()) addOverrideTree(zip, source, "overrides/" + folder);
+                }
+                File options = new File(gameDir, "options.txt");
+                if (options.isFile()) addOverrideFile(zip, options, "overrides/options.txt");
+                zip.finish();
+                }
+                Tools.runOnUiThread(() -> {
+                    if (isAdded()) Toast.makeText(requireContext(), "Modpack exported", Toast.LENGTH_LONG).show();
+                });
+            } catch (Exception error) {
+                Tools.runOnUiThread(() -> Tools.showErrorRemote(error));
+            }
+        });
+    }
+
+    private static void addOverrideTree(ZipOutputStream zip, File root, String entryRoot) throws IOException {
+        File[] children = root.listFiles();
+        if (children == null) return;
+        for (File child : children) {
+            if (child.isDirectory()) addOverrideTree(zip, child, entryRoot + "/" + child.getName());
+            else if (child.isFile() && !child.getName().endsWith(".disabled"))
+                addOverrideFile(zip, child, entryRoot + "/" + child.getName());
+        }
+    }
+
+    private static void addOverrideFile(ZipOutputStream zip, File file, String entryName) throws IOException {
+        zip.putNextEntry(new ZipEntry(entryName));
+        try (FileInputStream input = new FileInputStream(file)) {
+            byte[] buffer = new byte[8192];
+            int count;
+            while ((count = input.read(buffer)) != -1) zip.write(buffer, 0, count);
+        }
+        zip.closeEntry();
     }
 
     private void openFolder(String child) {
