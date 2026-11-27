@@ -114,7 +114,7 @@ public class VersionManagerFragment extends Fragment {
                 ? "" : "\n" + instance.description;
         addText(content, instance.name + "\nMinecraft " + instance.versionId + description +
                 (instance.moddingData == null ? "\nVanilla installation" : "\nModded installation · " + instance.moddingData.platform));
-        addAction("Add card to Home screen · Set as selected profile", () -> {
+        addAction("Set as Home profile", () -> {
             Instances.setSelectedInstance(instance);
             Toast.makeText(requireContext(), "Installation selected for Home", Toast.LENGTH_SHORT).show();
         });
