@@ -1,6 +1,10 @@
 package net.kdt.pojavlaunch.modloaders.modpacks;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.view.LayoutInflater;
@@ -13,6 +17,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.graphics.drawable.RoundedBitmapDrawable;
 import androidx.core.graphics.drawable.RoundedBitmapDrawableFactory;
@@ -185,9 +190,18 @@ public class ModItemAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     mExtendedButton.setOnClickListener(v1 -> {
                         int position = mExtendedSpinner.getSelectedItemPosition();
                         if (position >= 0 && position < mVersionIndices.length) {
-                            mModpackApi.handleModpackInstallation(
-                                    mExtendedButton.getContext().getApplicationContext(),
-                                    mModDetail, mVersionIndices[position]);
+                            Context context = mExtendedButton.getContext();
+                            if (isUsingMobileData(context)) {
+                                new AlertDialog.Builder(context)
+                                        .setTitle(R.string.global_warning)
+                                        .setMessage("You are using mobile data. Continuing the download may consume a significant amount of data. Do you want to continue?")
+                                        .setNegativeButton(android.R.string.cancel, null)
+                                        .setPositiveButton("Use Anyway", (dialog, which) ->
+                                                startModpackInstallation(context, position))
+                                        .show();
+                            } else {
+                                startModpackInstallation(context, position);
+                            }
                         }
                     });
                     mExtendedSpinner.setAdapter(mLoadingAdapter);
@@ -294,6 +308,22 @@ public class ModItemAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             }
         }
 
+
+        private void startModpackInstallation(Context context, int versionPosition) {
+            if (versionPosition < 0 || versionPosition >= mVersionIndices.length || mModDetail == null) return;
+            mModpackApi.handleModpackInstallation(
+                    context.getApplicationContext(), mModDetail, mVersionIndices[versionPosition]);
+        }
+
+        /** Detect metered cellular connections without treating Wi-Fi/VPN as cellular. */
+        private boolean isUsingMobileData(Context context) {
+            ConnectivityManager manager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (manager == null) return false;
+            Network activeNetwork = manager.getActiveNetwork();
+            if (activeNetwork == null) return false;
+            NetworkCapabilities capabilities = manager.getNetworkCapabilities(activeNetwork);
+            return capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR);
+        }
 
         /** Mark a project when the selected instance was created from this exact modpack. */
         private void updateInstalledBadge(ModItem item) {
