@@ -90,6 +90,11 @@ public class ProgressLayout extends ConstraintLayout implements View.OnClickList
         post(() -> {
             if (count > 0) {
                 mTaskNumberDisplayer.setText(getContext().getString(R.string.progresslayout_tasks_in_progress, count));
+                if (!mExpanded) {
+                    mExpanded = true;
+                    mTaskScroll.setVisibility(VISIBLE);
+                    mFlipArrow.setText("⌄");
+                }
                 setVisibility(VISIBLE);
             } else {
                 setVisibility(GONE);
