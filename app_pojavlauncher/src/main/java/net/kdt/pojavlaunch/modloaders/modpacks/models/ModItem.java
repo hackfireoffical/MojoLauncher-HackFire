@@ -8,6 +8,10 @@ public class ModItem extends ModSource {
     public String title;
     public String description;
     public String imageUrl;
+    /** Provider slug used to recognize an already-present mod jar in the selected instance. */
+    public String projectSlug;
+    /** Known downloadable filenames returned by providers (when available). */
+    public String[] knownFileNames;
 
     public ModItem(int apiSource, boolean isModpack, String id, String title, String description, String imageUrl) {
         this.apiSource = apiSource;
@@ -26,6 +30,7 @@ public class ModItem extends ModSource {
                 ", title='" + title + '\'' +
                 ", description='" + description + '\'' +
                 ", imageUrl='" + imageUrl + '\'' +
+                ", projectSlug='" + projectSlug + '\'' +
                 ", apiSource=" + apiSource +
                 ", isModpack=" + isModpack +
                 '}';

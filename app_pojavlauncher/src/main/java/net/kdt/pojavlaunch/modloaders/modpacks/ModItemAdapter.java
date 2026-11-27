@@ -319,16 +319,40 @@ public class ModItemAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         }
 
 
-        /** Mark a project when the selected instance was created from this exact modpack. */
+        /** Show a blue check only when this mod's jar is already present in the selected instance. */
         private void updateInstalledBadge(ModItem item) {
             Instance selected = InstanceManager.getSelectedListedInstance();
-            boolean installed = item.isModpack && selected != null
-                    && ((selected.modpackProjectId != null
-                            && selected.modpackProjectId.equals(item.id)
-                            && selected.modpackApiSource == item.apiSource)
-                        || (selected.modpackProjectId == null && selected.name != null
-                            && selected.name.trim().equalsIgnoreCase(item.title.trim())));
+            boolean installed = !item.isModpack && selected != null
+                    && isModJarPresent(selected, item);
             mInstalledBadge.setVisibility(installed ? View.VISIBLE : View.GONE);
+            mInstalledBadge.setContentDescription(installed ? "Installed in selected instance" : null);
+        }
+
+        private boolean isModJarPresent(Instance selected, ModItem item) {
+            java.io.File modsDirectory = new java.io.File(selected.getGameDirectory(), "mods");
+            java.io.File[] files = modsDirectory.listFiles(file -> file.isFile()
+                    && file.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".jar"));
+            if (files == null || files.length == 0) return false;
+
+            for (java.io.File file : files) {
+                String filename = file.getName().toLowerCase(java.util.Locale.ROOT);
+                if (item.knownFileNames != null) {
+                    for (String knownName : item.knownFileNames) {
+                        if (knownName != null && filename.equals(knownName.toLowerCase(java.util.Locale.ROOT)))
+                            return true;
+                    }
+                }
+                String slug = normalizeModIdentifier(item.projectSlug);
+                if (!slug.isEmpty() && filename.startsWith(slug)) return true;
+            }
+            return false;
+        }
+
+        private String normalizeModIdentifier(String value) {
+            if (value == null) return "";
+            return value.toLowerCase(java.util.Locale.ROOT)
+                    .replaceAll("[^a-z0-9]+", "-")
+                    .replaceAll("^-+|-+$", "");
         }
 
         /** Put the version matching the currently selected instance first and mark it clearly. */

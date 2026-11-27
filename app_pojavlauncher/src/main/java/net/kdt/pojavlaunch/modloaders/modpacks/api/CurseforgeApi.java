@@ -87,7 +87,20 @@ public class CurseforgeApi implements ModpackApi{
                     dataElement.get("id").getAsString(),
                     dataElement.get("name").getAsString(),
                     dataElement.get("summary").getAsString(),
-                    dataElement.getAsJsonObject("logo").get("thumbnailUrl").getAsString());
+                    dataElement.has("logo") && !dataElement.get("logo").isJsonNull()
+                            && dataElement.getAsJsonObject("logo").has("thumbnailUrl")
+                            ? dataElement.getAsJsonObject("logo").get("thumbnailUrl").getAsString() : null);
+            modItem.projectSlug = dataElement.has("slug") ? dataElement.get("slug").getAsString() : null;
+            if (dataElement.has("latestFiles") && dataElement.get("latestFiles").isJsonArray()) {
+                JsonArray latestFiles = dataElement.getAsJsonArray("latestFiles");
+                ArrayList<String> fileNames = new ArrayList<>();
+                for (int fileIndex = 0; fileIndex < latestFiles.size(); fileIndex++) {
+                    JsonObject latestFile = latestFiles.get(fileIndex).getAsJsonObject();
+                    if (latestFile.has("fileName") && !latestFile.get("fileName").isJsonNull())
+                        fileNames.add(latestFile.get("fileName").getAsString());
+                }
+                modItem.knownFileNames = fileNames.toArray(new String[0]);
+            }
             modItemList.add(modItem);
         }
         if(curseforgeSearchResult == null) curseforgeSearchResult = new CurseforgeSearchResult();
