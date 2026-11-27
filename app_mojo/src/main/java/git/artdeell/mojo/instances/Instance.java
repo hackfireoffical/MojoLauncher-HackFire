@@ -116,6 +116,11 @@ public class Instance extends DisplayInstance {
         return Tools.CTRLMAP_PATH + "/" + controlLayout;
     }
 
+    /** Returns the private installation directory, regardless of shared game-data settings. */
+    public File getInstanceDirectory() {
+        return mInstanceRoot;
+    }
+
     public File getGameDirectory() {
         if(sharedData) return Instances.SHARED_DATA_DIRECTORY;
         return mInstanceRoot;

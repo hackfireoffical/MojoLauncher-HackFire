@@ -258,7 +258,7 @@ public class VersionManagerFragment extends Fragment {
 
     private void openFolder(String child) {
         if (instance == null) return;
-        File folder = child.equals(".") ? instance.getGameDirectory() : new File(instance.getGameDirectory(), child);
+        File folder = child.equals(".") ? instance.getInstanceDirectory() : new File(instance.getGameDirectory(), child);
         if (!folder.exists() && !folder.mkdirs()) {
             Toast.makeText(requireContext(), "Unable to create folder", Toast.LENGTH_SHORT).show();
             return;
