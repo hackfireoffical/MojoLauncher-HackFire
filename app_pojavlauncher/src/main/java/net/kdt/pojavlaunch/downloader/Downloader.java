@@ -62,6 +62,10 @@ public class Downloader {
             throw new IOException("Download cancelled by user");
     }
 
+    public boolean isCancelled() {
+        return mCancelled;
+    }
+
     public Downloader(String mProgressKey) {
         this.mProgressKey = mProgressKey;
     }
