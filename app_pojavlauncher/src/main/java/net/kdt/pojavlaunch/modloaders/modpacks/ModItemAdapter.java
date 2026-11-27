@@ -1,7 +1,11 @@
 package net.kdt.pojavlaunch.modloaders.modpacks;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.res.Resources;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.graphics.Bitmap;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -13,6 +17,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.graphics.drawable.RoundedBitmapDrawable;
 import androidx.core.graphics.drawable.RoundedBitmapDrawableFactory;
@@ -185,9 +190,19 @@ public class ModItemAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     mExtendedButton.setOnClickListener(v1 -> {
                         int position = mExtendedSpinner.getSelectedItemPosition();
                         if (position >= 0 && position < mVersionIndices.length) {
-                            mModpackApi.handleModpackInstallation(
-                                    mExtendedButton.getContext().getApplicationContext(),
-                                    mModDetail, mVersionIndices[position]);
+                            Context context = mExtendedButton.getContext();
+                            Runnable install = () -> mModpackApi.handleModpackInstallation(
+                                    context.getApplicationContext(), mModDetail, mVersionIndices[position]);
+                            if (isUsingMobileData(context)) {
+                                new AlertDialog.Builder(context)
+                                        .setTitle("Mobile data warning")
+                                        .setMessage("You are using mobile data. Continuing the download may consume a significant amount of data. Do you want to continue?")
+                                        .setNegativeButton(android.R.string.cancel, null)
+                                        .setPositiveButton("Use Anyway", (dialog, which) -> install.run())
+                                        .show();
+                            } else {
+                                install.run();
+                            }
                         }
                     });
                     mExtendedSpinner.setAdapter(mLoadingAdapter);
@@ -238,6 +253,15 @@ public class ModItemAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             mIconView = view.findViewById(R.id.mod_thumbnail_imageview);
             mSourceView = view.findViewById(R.id.mod_source_imageview);
             mInstalledBadge = view.findViewById(R.id.mod_installed_badge);
+        }
+
+        private boolean isUsingMobileData(Context context) {
+            ConnectivityManager manager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (manager == null) return false;
+            Network network = manager.getActiveNetwork();
+            if (network == null) return false;
+            NetworkCapabilities capabilities = manager.getNetworkCapabilities(network);
+            return capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR);
         }
 
         /** Display basic info about the moditem */
